@@ -1,0 +1,2150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Megabonk: Save Editor</title>
+    <link rel="icon" type="image/png" href="icons/Megabonk_Logo.png">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        :root {
+            --bg-main: #121212;
+            --bg-secondary: #1e1e1e;
+            --bg-tertiary: #2a2a2a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b3b3b3;
+            
+            --accent: #FF6600;       
+            --accent-dark: #b34700;   
+            
+            --pixel-light: #3a3a3a; 
+            --pixel-dark: #121212;  
+            --pixel-light-accent: #ffb380; 
+            
+            --rarity-common: #00ff88;    
+            --rarity-rare: #00bfff;      
+            --rarity-epic: #9a33ff;      
+            --rarity-legendary: #ffc800; 
+            
+            --border-common: #60ffc0;
+            --border-rare: #00bfff;
+            --border-epic: #9a33ff;
+            --border-legendary: #ffc800;
+            --border-default: var(--pixel-light); 
+
+            --shadow-common: rgba(96, 255, 192, 0.25);
+            --shadow-rare: rgba(0, 191, 255, 0.25);
+            --shadow-epic: rgba(154, 51, 255, 0.25);
+            --shadow-legendary: rgba(255, 200, 0, 0.25);
+            --shadow-default: rgba(58, 58, 58, 0.25); 
+            
+            --shadow-accent: rgba(255, 102, 0, 0.25); 
+        }
+        body {
+            font-family: 'Consolas', 'Courier New', monospace;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 10px 24px 24px 24px;
+        }
+        
+        .lang-switcher {
+            position: relative; 
+            display: flex;
+            align-items: center; /* ДОБАВЛЕНО: для вертикального выравнивания */
+            justify-content: space-between; /* ИЗМЕНЕНО: расставляет элементы по краям */
+            /* gap: 5px; */ /* УБРАНО: больше не нужно */
+            margin-bottom: -20px; 
+            max-width: 1200px;
+            margin: 0 auto 10px auto; 
+            z-index: 10; 
+        }
+        
+        #lang-icon-button {
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            -ms-interpolation-mode: nearest-neighbor;
+            
+            transition: transform 0.2s ease;
+        }
+        #lang-icon-button:hover {
+            transform: scale(1.1);
+        }
+		
+		/* === НОВЫЙ СТИЛЬ ДЛЯ ИКОНКИ DISCORD === */
+        .social-icon {
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            border: 0; /* Убираем рамку от ссылки */
+            
+            /* Те же стили пиксель-арта, что и у иконки языка */
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            -ms-interpolation-mode: nearest-neighbor;
+            
+            transition: transform 0.2s ease;
+        }
+        .social-icon:hover {
+            transform: scale(1.1);
+        }
+        
+        .lang-popup {
+            display: none; 
+            position: absolute;
+            top: 40px; 
+            right: 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--pixel-light);
+            padding: 5px;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 11; 
+        }
+        .lang-popup.show {
+            display: flex; 
+        }
+        .lang-popup .lang-btn {
+            width: 100%; 
+        }
+
+        .lang-btn {
+            background: var(--bg-tertiary);
+            border: 0;
+            border-radius: 0;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-weight: 600;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+        .lang-btn:hover {
+            background: var(--bg-main);
+            color: var(--text-primary);
+        }
+        .lang-btn.active {
+            background: var(--accent);
+            color: var(--bg-main);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+        h1 {
+            text-align: center;
+            color: var(--accent);
+            margin-bottom: 0;
+            text-transform: uppercase;
+        }
+        
+        .file-controls, .global-controls {
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 0; 
+            border-top: 1px solid var(--pixel-light);
+            border-bottom: 1px solid var(--pixel-light);
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            padding: 10px; 
+            background: var(--bg-secondary);
+            border-radius: 0; 
+            border: 2px solid;
+            border-color: var(--pixel-light) var(--pixel-dark) var(--pixel-dark) var(--pixel-light);
+        }
+        .file-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        #drop-zone {
+            display: flex;
+            flex-direction: column; 
+            justify-content: center;
+            align-items: center;
+            height: 100px;
+            border: 2px dashed var(--pixel-light);
+            border-radius: 0; 
+            background-color: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-size: 0.9em; 
+            text-align: center;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            padding: 10px; 
+            box-sizing: border-box; 
+            cursor: pointer; 
+        }
+        #drop-zone .path-hint {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            text-transform: none; 
+            line-height: 1.4;
+        }
+        #drop-zone.dragover {
+            border-color: var(--accent);
+            background-color: var(--bg-main);
+            color: var(--accent);
+        }
+        
+        #download-button {
+            height: 100px;
+            background: var(--accent);
+            border-radius: 0; 
+            color: var(--bg-main);
+            font-size: 1.2em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            border: 0;
+        }
+        #download-button:hover {
+            background: var(--accent-dark);
+        }
+        #download-button:disabled {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+            border: 0;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 12px;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-size: 1em;
+            font-weight: 600;
+            border-radius: 0; 
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            border: 2px solid;
+            border-color: var(--pixel-light) var(--pixel-dark) var(--pixel-dark) var(--pixel-light);
+            white-space: nowrap; /* Для счетчиков */
+        }
+        .tab-button:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-color: var(--pixel-dark) var(--pixel-light) var(--pixel-light) var(--pixel-dark);
+        }
+        .tab-button.active {
+            background: var(--bg-secondary);
+            color: var(--accent);
+            border-color: var(--accent) var(--accent-dark) var(--accent-dark) var(--accent);
+            box-shadow: 0 0 10px var(--shadow-accent); 
+        }
+        
+        .global-controls {
+            display: block; 
+            position: relative; 
+        }
+        
+        .toggle-controls-btn {
+            position: absolute;
+            top: 20px; 
+            right: 20px; 
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            border: solid var(--text-secondary);
+            border-width: 0 4px 4px 0; 
+            padding: 0;
+            display: inline-block;
+            transform: rotate(45deg); 
+            transition: all 0.3s ease-out;
+        }
+        .toggle-controls-btn:hover {
+            border-color: var(--text-primary);
+        }
+        
+        .global-controls.expanded .toggle-controls-btn {
+            transform: rotate(-135deg); 
+            top: 25px; 
+        }
+        
+        .controls-collapsible-area {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            align-items: start;
+            margin-top: 20px; 
+
+            max-height: 30px; 
+            opacity: 0.4;
+            filter: blur(1px);
+            overflow: hidden;
+            pointer-events: none; 
+            transition: max-height 0.3s ease-out, opacity 0.2s linear, filter 0.2s linear, margin-top 0.3s ease-out;
+        }
+        
+        .global-controls.controls-disabled .controls-collapsible-area {
+             max-height: 0;
+             margin-top: 0;
+             opacity: 0;
+        }
+        
+        .global-controls.expanded .controls-collapsible-area {
+            max-height: 500px; 
+            opacity: 1;
+            filter: blur(0);
+            pointer-events: auto; 
+        }
+        
+        .global-controls.controls-disabled .slot-box:not(.disabled) {
+             cursor: not-allowed;
+             opacity: 0.5;
+        }
+        .global-controls.controls-disabled .slot-box:not(.disabled):hover {
+            border-color: var(--pixel-light);
+        }
+        
+		.currency-editor, .location-editor {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 50px; 
+        }
+        
+        .currency-editor label, 
+        .location-editor label, 
+        .slot-editor label {
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            text-transform: uppercase;
+            white-space: nowrap; 
+            flex-shrink: 0; 
+            
+            min-width: 150px; 
+        }
+        
+        .location-editor label {
+            cursor: pointer;
+        }
+        
+        .currency-editor input, #search-bar {
+            background: var(--bg-tertiary);
+            border-radius: 0; 
+            padding: 8px 10px;
+            color: var(--text-primary);
+            font-family: inherit;
+            border: 1px solid var(--pixel-light);
+        }
+        .currency-editor input {
+             width: 120px;
+        }
+        
+        /* === НАЧАЛО: Стили для Поиска с Крестиком === */
+        .search-wrapper {
+            position: relative;
+            width: 100%;
+            margin-top: -10px; 
+        }
+        #search-bar {
+            width: 100%;
+            padding: 12px 40px 12px 16px; /* Оставили место справа для [x] */
+            font-size: 1.1em;
+            border-radius: 0; 
+            margin-top: 0; /* Убрали, т.к. теперь на .search-wrapper */
+            box-sizing: border-box; 
+        }
+        .search-clear-btn {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 45px; /* Чуть шире */
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2em;
+            font-weight: 300;
+            color: var(--text-secondary);
+            cursor: pointer;
+            opacity: 0; /* Скрыт по умолчанию */
+            transition: opacity 0.2s, color 0.2s;
+            pointer-events: none; /* Нельзя нажать, пока скрыт */
+            user-select: none;
+        }
+        .search-clear-btn:hover {
+            color: var(--text-primary);
+        }
+        /* Показываем кнопку, если в поиске есть текст */
+        #search-bar:not(:placeholder-shown) + .search-clear-btn {
+            opacity: 1;
+            pointer-events: all;
+        }
+        /* Прячем стандартный крестик Webkit */
+        #search-bar::-webkit-search-cancel-button {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        /* === КОНЕЦ: Стили для Поиска с Крестиком === */
+        
+        .currency-editor input:disabled {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+        }
+        
+        .currency-editor button, #set-silver-btn {
+            background: var(--bg-tertiary);
+            border-radius: 0; 
+            color: var(--text-primary);
+            font-weight: 600;
+            padding: 8px 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            border: 0;
+            white-space: nowrap; 
+        }
+        .currency-editor button:hover, #set-silver-btn:hover {
+            background: var(--bg-main);
+        }
+        .currency-editor button:disabled, #set-silver-btn:disabled {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+        }
+
+        .currency-icon {
+            width: 36px;  
+            height: 36px; 
+            flex-shrink: 0; 
+            
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            -ms-interpolation-mode: nearest-neighbor;
+        }
+
+        .location-editor .currency-icon {
+            width: 80px; 
+            height: 36px; 
+            object-fit: cover; 
+            border: 1px solid var(--pixel-light); 
+            background: var(--bg-tertiary); 
+        }
+        
+        .location-editor input[type="checkbox"] {
+            width: 30px;  
+            height: 30px; 
+            cursor: pointer;
+        }
+        .location-editor input[type="checkbox"]:disabled {
+            cursor: not-allowed;
+        }
+        
+        .slot-editor {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 50px; 
+        }
+        
+        .slot-bar {
+            display: flex;
+            gap: 6px; 
+        }
+        .slot-box {
+            width: 36px;  
+            height: 36px; 
+            background: var(--bg-tertiary);
+            border: 1px solid var(--pixel-light);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .slot-box:hover {
+            border-color: var(--text-primary);
+            transform: scale(1.1);
+        }
+        .slot-box.disabled {
+            background: #2a2a2a; 
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .slot-box.disabled:hover {
+            border-color: var(--pixel-light);
+            transform: none;
+        }
+        .slot-box.active {
+            background: var(--accent);
+            border-color: var(--accent-dark);
+        }
+        
+        .rarity-section { margin-bottom: 24px; } 
+        
+        .rarity-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: var(--accent);
+            border-bottom: 2px solid var(--pixel-light); 
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+        }
+        
+        .item-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr; 
+            gap: 12px;
+        }
+        .item-card {
+            background: var(--bg-secondary);
+            border-radius: 0; 
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative; 
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 68px; 
+            border: 1px solid var(--pixel-light); 
+            
+            opacity: 0.5;
+            border-left: 5px solid transparent;
+            padding: 6px 10px 6px 5px; 
+
+            -webkit-user-select: none; 
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        .item-card:hover {
+            animation: pulse-zoom 0.8s infinite ease-in-out; 
+            border-color: var(--text-secondary);
+            box-shadow: 0 4px 10px rgba(150, 150, 150, 0.1);
+            opacity: 0.8;
+            z-index: 10;
+        }
+        
+        .item-icon {
+            width: 56px;
+            height: 56px;
+            flex-shrink: 0; 
+            background: var(--bg-tertiary);
+            border: 1px solid var(--pixel-light); 
+            border-radius: 0; 
+            display: none; 
+            margin-left: 5px; 
+            
+            object-fit: contain; 
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            -ms-interpolation-mode: nearest-neighbor;
+        }
+        
+        .item-icon-placeholder {
+            width: 56px;
+            height: 56px;
+            flex-shrink: 0; 
+            background: var(--bg-tertiary);
+            border: 1px solid var(--pixel-light); 
+            border-radius: 0; 
+            display: flex; 
+            justify-content: center;
+            align-items: center;
+            font-size: 1.8em; 
+            color: var(--text-secondary);
+            margin-left: 5px; 
+        }
+        
+        .item-card .item-name {
+            font-weight: 500;
+            font-size: 1.1em;
+            color: var(--text-primary); 
+            margin: 0 0 0 12px; 
+            text-align: left; 
+        }
+        
+        .item-name.rarity-Common { color: var(--rarity-common); }
+        .item-name.rarity-Rare { color: var(--rarity-rare); }
+        .item-name.rarity-Epic { color: var(--rarity-epic); }
+        .item-name.rarity-Legendary { color: var(--rarity-legendary); }
+
+        .item-name.rarity-Hero,
+        .item-name.rarity-Weapon,
+        .item-name.rarity-Tome {
+            color: var(--accent);
+        }
+        
+        .item-card::before {
+            content: '';
+            position: absolute;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            top: -18px; 
+            left: -18px;
+            width: calc(100% + 12px); 
+            height: calc(100% + 12px);
+            border-width: 12px;
+            border-style: solid;
+            border-image-source: url('icons/BorderSelectionArrow.png');
+            border-image-slice: 27;
+            border-image-repeat: stretch;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            -ms-interpolation-mode: nearest-neighbor;
+            pointer-events: none; 
+        }
+
+		.item-card:hover::before {
+			opacity: 1;
+		}
+        
+        .item-card.unlocked {
+            opacity: 1;
+        }
+        
+        .item-card.rarity-Common.unlocked:hover {
+            border-color: var(--border-common);
+            box-shadow: 0 4px 10px var(--shadow-common);
+        }
+        .item-card.rarity-Rare.unlocked:hover {
+            border-color: var(--border-rare);
+            box-shadow: 0 4px 10px var(--shadow-rare);
+        }
+        .item-card.rarity-Epic.unlocked:hover {
+            border-color: var(--border-epic);
+            box-shadow: 0 4px 10px var(--shadow-epic);
+        }
+        .item-card.rarity-Legendary.unlocked:hover {
+            border-color: var(--border-legendary);
+            box-shadow: 0 4px 10px var(--shadow-legendary);
+        }
+        
+        .item-card.rarity-Hero.unlocked:hover, 
+        .item-card.rarity-Weapon.unlocked:hover, 
+        .item-card.rarity-Tome.unlocked:hover { 
+            border-color: var(--accent); 
+            box-shadow: 0 4px 10px var(--shadow-accent);
+        }
+        
+        .item-card.rarity-Common.unlocked { border-left-color: var(--border-common); }
+        .item-card.rarity-Rare.unlocked { border-left-color: var(--border-rare); }
+        .item-card.rarity-Epic.unlocked { border-left-color: var(--border-epic); }
+        .item-card.rarity-Legendary.unlocked { border-left-color: var(--border-legendary); }
+        
+        .item-card.rarity-Hero.unlocked, 
+        .item-card.rarity-Weapon.unlocked, 
+        .item-card.rarity-Tome.unlocked { 
+            border-left-color: var(--accent); 
+        }
+        
+        #status-message {
+            text-align: center;
+            font-size: 1.1em;
+            color: var(--text-secondary);
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes pulse-zoom {
+            0% {
+                transform: scale(1.0);
+            }
+            50% {
+                transform: scale(1.03);
+            }
+            100% {
+                transform: scale(1.0);
+            }
+		}
+		
+		.save-warning {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--pixel-light);
+            border-top: 1px solid var(--accent-dark); 
+            padding: 10px 15px;
+            margin-top: -10px; 
+            margin-bottom: -10px; 
+            text-align: center;
+            z-index: 1; 
+            position: relative; 
+        }
+        .save-warning p {
+            margin: 0;
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .save-warning strong {
+            color: var(--accent); 
+            text-transform: uppercase;
+        }
+		
+		.header-content {
+			display: flex;
+			flex-direction: column; 
+			align-items: center; 
+			gap: 20px; 
+		}
+
+		.logo-container {
+			width: 171px;
+			height: 171px;
+			position: relative; 
+			filter: drop-shadow(0 0 10px var(--shadow-accent)); 
+		}
+
+		.logo-container::before {
+			content: '';
+			position: absolute;
+			opacity: 1; 
+			top: -18px; 
+			left: -18px;
+			width: calc(100% + 12px); 
+			height: calc(100% + 12px);
+			border-width: 12px;
+			border-style: solid;
+			border-image-source: url('icons/BorderSelectionArrow.png');
+			border-image-slice: 27;
+			border-image-repeat: stretch;
+			image-rendering: pixelated;
+			image-rendering: -moz-crisp-edges;
+			image-rendering: -webkit-crisp-edges;
+			-ms-interpolation-mode: nearest-neighbor;
+			pointer-events: none; 
+		}
+
+		.game-logo {
+			width: 100%; 
+			height: 100%;
+			object-fit: contain; 
+			image-rendering: pixelated;
+			image-rendering: -moz-crisp-edges;
+			image-rendering: -webkit-crisp-edges;
+			-ms-interpolation-mode: nearest-neighbor;
+		}
+
+		.container h1 { 
+			font-size: 2.2em; 
+			color: var(--accent);
+			margin: 0; 
+			text-transform: uppercase;
+		}
+        
+        /* === НАЧАЛО: Стили для Уведомлений === */
+        #notification-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 300px;
+        }
+        .toast {
+            padding: 12px 18px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.9em;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--pixel-light);
+            border-left: 5px solid var(--text-secondary);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            opacity: 0;
+            transform: translateX(110%);
+            transition: all 0.3s ease-out;
+            animation: slideIn 0.3s forwards, fadeOut 0.5s 4.5s forwards;
+        }
+        .toast.success {
+            border-left-color: var(--rarity-common); /* Зеленый */
+        }
+        .toast.error {
+            border-left-color: #ff3333; /* Красный */
+        }
+        @keyframes slideIn {
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(110%); }
+        }
+        /* === КОНЕЦ: Стили для Уведомлений === */
+    </style>
+</head>
+<body>
+
+	<div class="lang-switcher">
+		
+		<div class="social-container">
+			<a href="https://discord.com/users/1335488609897414656" target="_blank" title="Связаться в Discord">
+				<img src="icons/Discord.png" alt="Discord" class="social-icon">
+			</a>
+		</div>
+		
+		<div>
+			<img src="icons/Languages.png" alt="Language" id="lang-icon-button">
+			
+			<div id="lang-popup" class="lang-popup">
+				<button id="lang-en" class="lang-btn" data-lang="en">EN</button>
+				<button id="lang-ru" class="lang-btn" data-lang="ru">RU</button>
+			</div>
+		</div>
+	</div>
+
+    <div class="container">
+		<div class="header-content">
+            <div class="logo-container"> 
+                <img src="icons/Megabonk_Logo.png" alt="Megabonk Logo" class="game-logo">
+            </div>
+            <h1 data-key="title">Megabonk: Save Editor</h1> 
+        </div>
+
+        <div class="file-controls">
+            <div id="drop-zone">
+                <span data-key="dropZone">Перетащи сюда `progression.json`</span>
+                <span class="path-hint" data-key="pathHint">
+                    Путь: C:\Users\[ИМЯ ПОЛЬЗОВАТЕЛЯ]\AppData\LocalLow\Ved\Megabonk\Saves\CloudDir\[ВАШ STEAM ID]
+                </span>
+            </div>
+            <button id="download-button" data-key="downloadButton" disabled>Сначала загрузи и измени сейв</button>
+        </div>
+		
+		<div class="save-warning">
+            <p>
+                <strong data-key="warningTitle">ВНИМАНИЕ:</strong>
+                <span data-key="warningText">Всегда делайте резервную копию (бэкап) вашего `progression.json` перед редактированием. Вы используете этот инструмент на свой страх и риск.</span>
+            </p>
+        </div>
+        
+        <div class="tabs"> 
+            <button class="tab-button active" data-tab="Hero" data-key="tabHero">Герои</button>
+            <button class="tab-button" data-tab="Weapon" data-key="tabWeapon">Оружие</button>
+            <button class="tab-button" data-tab="Tome" data-key="tabTome">Тома</button>
+            <button class="tab-button" data-tab="Предметы" data-key="tabItems">Предметы</button>
+        </div>
+
+        <div class="global-controls controls-disabled">
+            
+            <div id="toggle-controls-btn" class="toggle-controls-btn"></div>
+            
+            <div class="currency-editor">
+                <img src="icons/Silver.png" alt="" class="currency-icon">
+                <label for="silver-input" data-key="labelSilver">Серебро (Silver):</label>
+                <input type="number" id="silver-input" placeholder="0" min="0" disabled>
+                <button id="set-silver-btn" data-key="btnApply" disabled>Применить</button>
+            </div>
+            
+            <div class="controls-collapsible-area">
+            
+                <div class="location-editor">
+                    <img src="icons/Desert.png" alt="" class="currency-icon">
+                    <label for="desert-unlock" data-key="labelDesert">Пустыня:</label>
+                    <input type="checkbox" id="desert-unlock" disabled>
+                </div>
+                
+                <div class="slot-editor">
+                    <img src="icons/WeaponSlot.png" alt="" class="currency-icon">
+                    <label for="weapon-slots" data-key="labelWeaponSlots">Слоты Оружия:</label>
+                    <div class="slot-bar" id="weapon-slots">
+                        <div class="slot-box active disabled"></div>
+                        <div class="slot-box active disabled"></div>
+                        <div class="slot-box" data-slot="1" data-key="weapons" data-achiev="a_weaponSlots"></div>
+                        <div class="slot-box" data-slot="2" data-key="weapons" data-achiev="a_weaponSlots2"></div>
+                    </div>
+                </div>
+                
+                <div class="slot-editor">
+                    <img src="icons/TomeSlot.png" alt="" class="currency-icon">
+                    <label for="tome-slots" data-key="labelTomeSlots">Слоты Томов:</label>
+                    <div class="slot-bar" id="tome-slots">
+                        <div class="slot-box active disabled"></div>
+                        <div class="slot-box active disabled"></div>
+                        <div class="slot-box" data-slot="1" data-key="tomes" data-achiev="a_tomeSlots"></div>
+                        <div class="slot-box" data-slot="2" data-key="tomes" data-achiev="a_tomeSlots2"></div>
+                    </div>
+                </div>
+                
+                <div class="slot-editor">
+                    <img src="icons/Reroll.png" alt="" class="currency-icon">
+                    <label for="reroll-slots" data-key="labelRerolls">Rerolls:</label>
+                    <div class="slot-bar" id="reroll-slots">
+                        <div class="slot-box" data-slot="1" data-key="rerolls"></div>
+                        <div class="slot-box" data-slot="2" data-key="rerolls"></div>
+                        <div class="slot-box" data-slot="3" data-key="rerolls"></div>
+                        <div class="slot-box" data-slot="4" data-key="rerolls"></div>
+                        <div class="slot-box" data-slot="5" data-key="rerolls"></div>
+                        <div class="slot-box" data-slot="6" data-key="rerolls"></div>
+                    </div>
+                </div>
+                
+                <div class="slot-editor">
+                    <img src="icons/Skip.png" alt="" class="currency-icon">
+                    <label for="skip-slots" data-key="labelSkips">Skips:</label>
+                    <div class="slot-bar" id="skip-slots">
+                        <div class="slot-box" data-slot="1" data-key="skips"></div>
+                        <div class="slot-box" data-slot="2" data-key="skips"></div>
+                        <div class="slot-box" data-slot="3" data-key="skips"></div>
+                        <div class="slot-box" data-slot="4" data-key="skips"></div>
+                        <div class="slot-box" data-slot="5" data-key="skips"></div>
+                        <div class="slot-box" data-slot="6" data-key="skips"></div>
+                    </div>
+                </div>
+                
+                <div class="slot-editor">
+                    <img src="icons/Banish.png" alt="" class="currency-icon">
+                    <label for="banish-slots" data-key="labelBanishes">Banishes:</label>
+                    <div class="slot-bar" id="banish-slots">
+                        <div class="slot-box" data-slot="1" data-key="banishes"></div>
+                        <div class="slot-box" data-slot="2" data-key="banishes"></div>
+                        <div class="slot-box" data-slot="3" data-key="banishes"></div>
+                        <div class="slot-box" data-slot="4" data-key="banishes"></div>
+                        <div class="slot-box" data-slot="5" data-key="banishes"></div>
+                        <div class="slot-box" data-slot="6" data-key="banishes"></div>
+                    </div>
+                </div>
+            
+            </div> 
+            
+        </div>
+        
+        <div class="search-wrapper">
+            <input type="search" id="search-bar" placeholder="Поиск (например: Кактус, Ice Crystal, a_cactus...)" data-key-placeholder="searchPlaceholder" disabled>
+            <span id="search-clear-btn" class="search-clear-btn">&times;</span>
+        </div>
+
+        <div id="editor-content">
+            <p id="status-message" data-key="statusMessage">Загрузи файл `progression.json` чтобы начать...</p>
+        </div>
+    </div>
+
+    <div id="notification-container"></div>
+
+    <script>
+        const translations = {
+            en: {
+                title: "Megabonk: Save Editor",
+                dropZone: "Drag `progression.json` here",
+                pathHint: "Path: C:\\Users\\[USERNAME]\\AppData\\LocalLow\\Ved\\Megabonk\\Saves\\CloudDir\\[YOUR STEAM ID]",
+                downloadButton: "Save & Download Changes",
+                tabHero: "Heroes",
+                tabWeapon: "Weapons",
+                tabTome: "Tomes",
+                tabItems: "Items",
+                labelSilver: "Silver:",
+                btnApply: "Apply",
+                searchPlaceholder: "Search (e.g., Cactus, Ice Crystal, a_cactus...)",
+                statusMessage: "Load `progression.json` to start...",
+                alertLoadFirst: "Load a save file first!",
+                alertInvalidNumber: "Enter a valid number (0 or more).",
+                alertLoadError: "Decryption Error! File might be corrupt or not a Megabonk save.\n",
+                alertDragError: "Please drag the 'progression.json' file.",
+                alertSelectError: "Please select the 'progression.json' file.",
+                alertSaveError: "Error encrypting save file!\n",
+                alertNoSave: "Nothing to save!",
+                dropZoneLoaded: "Loaded: ",
+                dropZoneError: "Error! Try again.",
+                btnSaved: "Saved! ✅",
+                searchNotFound: "Nothing found for ",
+				warningTitle: "WARNING:",
+				warningText: "Always make a backup of your `progression.json` before editing. You use this tool at your own risk.",
+                labelDesert: "Desert:",
+                labelWeaponSlots: "Weapon Slots:",
+                labelTomeSlots: "Tome Slots:",
+                labelRerolls: "Rerolls:",
+                labelSkips: "Skips:",
+                labelBanishes: "Banishes:",
+            },
+            ru: {
+                title: "Megabonk: Save Editor",
+                dropZone: "Перетащи сюда `progression.json`",
+                pathHint: "Путь: C:\\Users\\[ИМЯ ПОЛЬЗОВАТЕЛЯ]\\AppData\\LocalLow\\Ved\\Megabonk\\Saves\\CloudDir\\[ВАШ STEAM ID]",
+                downloadButton: "Скачать измененный сейв",
+                tabHero: "Герои",
+                tabWeapon: "Оружие",
+                tabTome: "Тома",
+                tabItems: "Предметы",
+                labelSilver: "Серебро (Silver):",
+                btnApply: "Применить",
+                searchPlaceholder: "Поиск (например: Кактус, Ice Crystal, a_cactus...)",
+                statusMessage: "Загрузи файл `progression.json` чтобы начать...",
+                alertLoadFirst: "Сначала загрузи сейв!",
+                alertInvalidNumber: "Введи корректное число (0 или больше).",
+                alertLoadError: "Ошибка расшифровки! Файл поврежден или это не сейв Megabonk.\n",
+                alertDragError: "Пожалуйста, перетащи файл 'progression.json'.",
+                alertSelectError: "Пожалуйста, выбери файл 'progression.json'.",
+                alertSaveError: "Ошибка при шифровании сейва!\n",
+                alertNoSave: "Нечего сохранять!",
+                dropZoneLoaded: "Загружен: ",
+                dropZoneError: "Ошибка! Попробуй снова.",
+                btnSaved: "Сохранено! ✅",
+                searchNotFound: "Ничего не найдено по запросу ",
+                warningTitle: "ВНИМАНИЕ:",
+				warningText: "Всегда делайте резервную копию (бэкап) вашего `progression.json` перед редактированием. Вы используете этот инструмент на свой страх и риск.",
+				
+                labelDesert: "Пустыня:",
+                labelWeaponSlots: "Слоты Оружия:",
+                labelTomeSlots: "Слоты Томов:",
+                labelRerolls: "Рероллы:",
+                labelSkips: "Пропуски:",
+                labelBanishes: "Изгнания:",
+            }
+        };
+
+        const itemDatabase = [
+          {
+            "achievID": "a_amog",
+            "purchaseID": "Amog",
+            "rarity": "Hero",
+            "searchName": "Амог, Амогус, предатель, импостер"
+          },
+          {
+            "achievID": "a_athena",
+            "purchaseID": "Athena",
+            "rarity": "Hero",
+            "searchName": "Афина, Атена"
+          },
+          {
+            "achievID": "a_bandit",
+            "purchaseID": "Bandit",
+            "rarity": "Hero",
+            "searchName": "Бандит, Разбойник"
+          },
+          {
+            "achievID": "a_birdo",
+            "purchaseID": "Birdo",
+            "rarity": "Hero",
+            "searchName": "Бирдо, Бердо, Птица"
+          },
+          {
+            "achievID": "a_bush",
+            "purchaseID": "Bush",
+            "rarity": "Hero",
+            "searchName": "Куст, Буш"
+          },
+          {
+            "achievID": "a_calcium",
+            "purchaseID": "Calcium",
+            "rarity": "Hero",
+            "searchName": "Кальций, Скелет, Кальциум"
+          },
+          {
+            "achievID": "a_sirChadwell, a_chadwell",
+            "purchaseID": "SirChadwell, Chadwell",
+            "rarity": "Hero",
+            "searchName": "Сэр Чадвэлл, Чад, Чадвелл, Сэр Чедвелл"
+          },
+          {
+            "achievID": "a_clank",
+            "purchaseID": "Cl4nk",
+            "rarity": "Hero",
+            "searchName": "Кланк, Клэнк, C14nk, Робот"
+          },
+          {
+            "achievID": "a_dicehead",
+            "purchaseID": "Dicehead",
+            "rarity": "Hero",
+            "searchName": "Кубоголовый, Дайсхед, Кубик, Голова-кубик, "
+          },
+          {
+            "achievID": "a_megachad",
+            "purchaseID": "Megachad",
+            "rarity": "Hero",
+            "searchName": "Мегачад, Мега чад, Гигачад"
+          },
+          {
+            "achievID": "a_monke",
+            "purchaseID": "Monke",
+            "rarity": "Hero",
+            "searchName": "Обезьян, Манки, Монке, Обезьяна"
+          },
+          {
+            "achievID": "a_ninja",
+            "purchaseID": "Ninja",
+            "rarity": "Hero",
+            "searchName": "Ниндзя, Нинджа, Шиноби"
+          },
+          {
+            "achievID": "a_noelle",
+            "purchaseID": "Noelle",
+            "rarity": "Hero",
+            "searchName": "Ноэль"
+          },
+          {
+            "achievID": "a_ogre",
+            "purchaseID": "Ogre",
+            "rarity": "Hero",
+            "searchName": "Огр, Шрек"
+          },
+          {
+            "achievID": "a_robinette",
+            "purchaseID": "Robinette",
+            "rarity": "Hero",
+            "searchName": "Робинетта, Робин"
+          },
+          {
+            "achievID": "a_spaceman",
+            "purchaseID": "Spaceman",
+            "rarity": "Hero",
+            "searchName": "Космонавт, Спейсмен, Астронавт"
+          },
+          {
+            "achievID": "a_tony",
+            "purchaseID": "TonyMcZoom",
+            "rarity": "Hero",
+            "searchName": "Тони МакЗум, Тони, Зум"
+          },
+          {
+            "achievID": "a_vlad",
+            "purchaseID": "Vlad",
+            "rarity": "Hero",
+            "searchName": "Влад, Вампир"
+          },
+          {
+            "achievID": "a_battery",
+            "purchaseID": "Battery",
+            "rarity": "Common",
+            "searchName": "Батарейка, Батарея"
+          },
+          {
+            "achievID": "a_bossBuster",
+            "purchaseID": "BossBuster",
+            "rarity": "Common",
+            "searchName": "Босс Бастер, Убийца боссов, Боссбастер"
+          },
+          {
+            "achievID": "a_cactus",
+            "purchaseID": "Cactus",
+            "rarity": "Common",
+            "searchName": "Кактус, Колючка"
+          },
+          {
+            "achievID": "a_cursedDoll",
+            "purchaseID": "CursedDoll",
+            "rarity": "Common",
+            "searchName": "Проклятая кукла, Кукла"
+          },
+          {
+            "achievID": "a_forbiddenJuice",
+            "purchaseID": "ForbiddenJuice",
+            "rarity": "Common",
+            "searchName": "Запретный сок, Сок, Запрещенный сок"
+          },
+          {
+            "achievID": "a_ghost",
+            "purchaseID": "Ghost",
+            "rarity": "Common",
+            "searchName": "Призрак, Привидение, Гост"
+          },
+          {
+            "achievID": "a_iceCrystal",
+            "purchaseID": "IceCrystal",
+            "rarity": "Common",
+            "searchName": "Ледяной кристалл, Кристалл, Лед, Заморозка"
+          },
+          {
+            "achievID": "a_key",
+            "purchaseID": "Key",
+            "rarity": "Common",
+            "searchName": "Ключ"
+          },
+          {
+            "achievID": "a_skuleg",
+            "purchaseID": "Skuleg",
+            "rarity": "Common",
+            "searchName": "Черепонога, Нога, Костяная нога"
+          },
+          {
+            "achievID": "a_tacticalGlasses",
+            "purchaseID": "TacticalGlasses",
+            "rarity": "Common",
+            "searchName": "Тактические очки, Очки"
+          },
+          {
+            "achievID": "a_turboSocks",
+            "purchaseID": "TurboSocks",
+            "rarity": "Common",
+            "searchName": "Турбо Носки, Носки, Скорость"
+          },
+          {
+            "achievID": "a_brassKnuckles",
+            "purchaseID": "BrassKnuckles",
+            "rarity": "Rare",
+            "searchName": "Кастеты, Медные костяшки"
+          },
+          {
+            "achievID": "a_demonicBlade",
+            "purchaseID": "DemonBlade",
+            "rarity": "Rare",
+            "searchName": "Демонический клинок, Клинок демона, Меч"
+          },
+          {
+            "achievID": "a_demonicBlood",
+            "purchaseID": "DemonicBlood",
+            "rarity": "Rare",
+            "searchName": "Демоническая кровь, Кровь демона"
+          },
+          {
+            "achievID": "a_echoShard",
+            "purchaseID": "EchoShard",
+            "rarity": "Rare",
+            "searchName": "Эхо фрагмент, Осколок эха, Эхо"
+          },
+          {
+            "achievID": "a_goldenSneakers",
+            "purchaseID": "GoldenSneakers",
+            "rarity": "Rare",
+            "searchName": "Золотые кроссовки, Кроссовки, Кеды, Ботинки"
+          },
+          {
+            "achievID": "a_idleJuice",
+            "purchaseID": "IdleJuice",
+            "rarity": "Rare",
+            "searchName": "Сок бездельника, АФК сок, Сок АФК, Айдл джус"
+          },
+          {
+            "achievID": "a_kevin",
+            "purchaseID": "Kevin",
+            "rarity": "Rare",
+            "searchName": "Кевин"
+          },
+          {
+            "achievID": "a_leechingCrystal",
+            "purchaseID": "LeechingCrystal",
+            "rarity": "Rare",
+            "searchName": "Кристалл вампиризма, Вампиризм, Кристалл-пиявка, Лайфстил"
+          },
+          {
+            "achievID": "a_poisonGloves",
+            "purchaseID": "GlovePoison",
+            "rarity": "Rare",
+            "searchName": "Заплесневелые Перчатки, Ядовитые перчатки, Перчатки, Яд"
+          },
+          {
+            "achievID": "a_bob",
+            "purchaseID": "BobDead",
+            "rarity": "Epic",
+            "searchName": "Боб(Мёртый), Боб"
+          },
+          {
+            "achievID": "a_cursedGloves",
+            "purchaseID": "GloveCurse",
+            "rarity": "Epic",
+            "searchName": "Проклятые лапки, Перчатки"
+          },
+          {
+            "achievID": "a_demonicSoul",
+            "purchaseID": "DemonicSoul",
+            "rarity": "Epic",
+            "searchName": "Демоническая душа, Душа демона"
+          },
+          {
+            "achievID": "a_eagleClaw",
+            "purchaseID": "EagleClaw",
+            "rarity": "Epic",
+            "searchName": "Орлиный коготь, Коготь орла, Коготь"
+          },
+          {
+            "achievID": "a_gamerGoggles",
+            "purchaseID": "GamerGoggles",
+            "rarity": "Epic",
+            "searchName": "Геймерские очки, Очки геймера, Очки"
+          },
+          {
+            "achievID": "a_gasMask, a_gasmask",
+            "purchaseID": "GasMask, Gasmask",
+            "rarity": "Epic",
+            "searchName": "Противогаз, Газовая маска"
+          },
+          {
+            "achievID": "a_grandmasTonic",
+            "purchaseID": "GrandmasSecretTonic",
+            "rarity": "Epic",
+            "searchName": "Бабушкин Тоник, Тоник, Зелье"
+          },
+          {
+            "achievID": "a_quinsMask",
+            "purchaseID": "QuinsMask",
+            "rarity": "Epic",
+            "searchName": "Маска Квина, Маска"
+          },
+          {
+            "achievID": "a_shatteredKnowledge",
+            "purchaseID": "ShatteredWisdom",
+            "rarity": "Epic",
+            "searchName": "Разбитое знание, Осколки знаний, Знание"
+          },
+          {
+            "achievID": "a_sluttyCannon",
+            "purchaseID": "SluttyCannon",
+            "rarity": "Epic",
+            "searchName": "Безбашенная Пушка, Пошлая пушка, Пушка"
+          },
+          {
+            "achievID": "a_toxicBarrel",
+            "purchaseID": "ToxicBarrel",
+            "rarity": "Epic",
+            "searchName": "Бочка с Токсинами, Бочка, Ядовитая бочка"
+          },
+          {
+            "achievID": "a_turboSkates",
+            "purchaseID": "Rollerblades",
+            "rarity": "Epic",
+            "searchName": "Ролики, Турбо ролики, Ролики, Коньки, Скейты"
+          },
+          {
+            "achievID": "a_anvil",
+            "purchaseID": "Anvil",
+            "rarity": "Legendary",
+            "searchName": "Наковальня"
+          },
+          {
+            "achievID": "a_bloodyCleaver",
+            "purchaseID": "BloodyCleaver",
+            "rarity": "Legendary",
+            "searchName": "Кровавый Топорик, Тесак, Кливер"
+          },
+          {
+            "achievID": "a_chonkplate",
+            "purchaseID": "Chonkplate",
+            "rarity": "Legendary",
+            "searchName": "Чонкпластина, Броня, Толстая броня, Чонкплейт"
+          },
+          {
+            "achievID": "a_dragonfire",
+            "purchaseID": "Dragonfire",
+            "rarity": "Legendary",
+            "searchName": "Драконье Пламя, Дыхание дракона, Драгонфаер"
+          },
+          {
+            "achievID": "a_energyCore",
+            "purchaseID": "EnergyCore",
+            "rarity": "Legendary",
+            "searchName": "Энергетическое ядро, Ядро энергии"
+          },
+          {
+            "achievID": "a_holyBook",
+            "purchaseID": "HolyBook",
+            "rarity": "Legendary",
+            "searchName": "Святая книга, Книга"
+          },
+          {
+            "achievID": "a_joesDagger",
+            "purchaseID": "JoesDagger",
+            "rarity": "Legendary",
+            "searchName": "Кинжал Джо, Нож Джо, Даггер"
+          },
+          {
+            "achievID": "a_lightningOrb",
+            "purchaseID": "LightningOrb",
+            "rarity": "Legendary",
+            "searchName": "Сфера Молнии, Шар молнии, Орб, Сфера молний"
+          },
+          {
+            "achievID": "a_soulHarvester",
+            "purchaseID": "SoulHarvester",
+            "rarity": "Legendary",
+            "searchName": "Жнец Душ, Жнец, Коса, Харвестер"
+          },
+          {
+            "achievID": "a_speedBoi",
+            "purchaseID": "SpeedBoi",
+            "rarity": "Legendary",
+            "searchName": "Спидбой, Скоростной мальчик, Скорость"
+          },
+          {
+            "achievID": "a_suckyMagnet",
+            "purchaseID": "SuckyMagnet",
+            "rarity": "Legendary",
+            "searchName": "Засасывающий Магнит, Притягивающий магнит, Всасывающий магнит, Магнит"
+          },
+          {
+            "achievID": "a_armorTome",
+            "purchaseID": "Armor",
+            "rarity": "Tome",
+            "searchName": "Том брони, Книга брони, Броня"
+          },
+          {
+            "achievID": "a_attractionTome",
+            "purchaseID": "Attraction",
+            "rarity": "Tome",
+            "searchName": "Том притяжения, Книга притяжения, Магнит, Притяжение"
+          },
+          {
+            "achievID": "a_bloodTome",
+            "purchaseID": "Blood",
+            "rarity": "Tome",
+            "searchName": "Кровавый том, Том Вампиризма, Книга крови, Кровь"
+          },
+          {
+            "achievID": "a_chaosTome",
+            "purchaseID": "Chaos",
+            "rarity": "Tome",
+            "searchName": "Том хаоса, Книга хаоса, Хаос"
+          },
+          {
+            "achievID": "a_cursedTome",
+            "purchaseID": "Cursed",
+            "rarity": "Tome",
+            "searchName": "Проклятый том, Книга проклятий, Проклятие"
+          },
+          {
+            "achievID": "a_durationTome",
+            "purchaseID": "Duration",
+            "rarity": "Tome",
+            "searchName": "Том длительности, Книга длительности, Длительность"
+          },
+          {
+            "achievID": "a_luckTome",
+            "purchaseID": "Luck",
+            "rarity": "Tome",
+            "searchName": "Том удачи, Книга удачи, Удача"
+          },
+          {
+            "achievID": "a_quantityTome",
+            "purchaseID": "Quantity",
+            "rarity": "Tome",
+            "searchName": "Том количества, Книга количества, Количество"
+          },
+          {
+            "achievID": "a_thornsTome",
+            "purchaseID": "Thorns",
+            "rarity": "Tome",
+            "searchName": "Том шипов, Книга шипов, Шипы"
+          },
+          {
+            "achievID": "a_xpTome",
+            "purchaseID": "Xp",
+            "rarity": "Tome",
+            "searchName": "Том опыта, Книга опыта, Опыт, Экспа"
+          },
+          {
+            "achievID": "a_aegis",
+            "purchaseID": "Aegis",
+            "rarity": "Weapon",
+            "searchName": "Эгида, Аегис, Щит"
+          },
+          {
+            "achievID": "a_aura",
+            "purchaseID": "Aura",
+            "rarity": "Weapon",
+            "searchName": "Аура"
+          },
+          {
+            "achievID": "a_axe",
+            "purchaseID": "Axe",
+            "rarity": "Weapon",
+            "searchName": "Топор, Секира"
+          },
+          {
+            "achievID": "a_bananarang",
+            "purchaseID": "Bananarang",
+            "rarity": "Weapon",
+            "searchName": "Бананаранг, Бумеранг, Банан"
+          },
+          {
+            "achievID": "a_blackHole",
+            "purchaseID": "BlackHole",
+            "rarity": "Weapon",
+            "searchName": "Черная дыра, Блэкхол"
+          },
+          {
+            "achievID": "a_bloodMagic",
+            "purchaseID": "BloodMagic",
+            "rarity": "Weapon",
+            "searchName": "Кровавая магия, Магия крови"
+          },
+          {
+            "achievID": "a_corruptedSword",
+            "purchaseID": "CorruptedSword, CorruptSword",
+            "rarity": "Weapon",
+            "searchName": "Осквернённый Меч, Проклятый меч, Поврежденный меч"
+          },
+          {
+            "achievID": "a_dexecutioner",
+            "purchaseID": "Dexecutioner",
+            "rarity": "Weapon",
+            "searchName": "Палач, Дексекутор, Дэксекуционер"
+          },
+          {
+            "achievID": "a_dice",
+            "purchaseID": "Dice",
+            "rarity": "Weapon",
+            "searchName": "Кубик, Кости, Дайсы"
+          },
+          {
+            "achievID": "a_dragonsBreath",
+            "purchaseID": "DragonsBreath",
+            "rarity": "Weapon",
+            "searchName": "Дыхание дракона, Огонь дракона"
+          },
+          {
+            "achievID": "a_frostwalker",
+            "purchaseID": "Frostwalker",
+            "rarity": "Weapon",
+            "searchName": "Ледяной Странник, Фростволкер, Мороз"
+          },
+          {
+            "achievID": "a_heroSword",
+            "purchaseID": "HeroSword",
+            "rarity": "Weapon",
+            "searchName": "Меч героя, Геройский меч"
+          },
+          {
+            "achievID": "a_katana",
+            "purchaseID": "Katana",
+            "rarity": "Weapon",
+            "searchName": "Катана"
+          },
+          {
+            "achievID": "a_mines",
+            "purchaseID": "Mines, Mine",
+            "rarity": "Weapon",
+            "searchName": "Мины"
+          },
+          {
+            "achievID": "a_poisonFlask",
+            "purchaseID": "PoisonFlask",
+            "rarity": "Weapon",
+            "searchName": "Ядовитая Колба, Фласка с ядом, Яд"
+          },
+          {
+            "achievID": "a_revolver",
+            "purchaseID": "Revolver",
+            "rarity": "Weapon",
+            "searchName": "Револьвер"
+          },
+          {
+            "achievID": "a_shotgun",
+            "purchaseID": "Shotgun",
+            "rarity": "Weapon",
+            "searchName": "Дробовик, Шотган"
+          },
+          {
+            "achievID": "a_sluttyRocket",
+            "purchaseID": "Rockets",
+            "rarity": "Weapon",
+            "searchName": "Свободная Ракета, Пошлая ракета, Ракета"
+          },
+          {
+            "achievID": "a_sniperRifle",
+            "purchaseID": "Sniper",
+            "rarity": "Weapon",
+            "searchName": "Снайперская Винтовка, Снайперка"
+          },
+          {
+            "achievID": "a_spaceNoodle",
+            "purchaseID": "SpaceNoodle",
+            "rarity": "Weapon",
+            "searchName": "Космическая Лапша, Лапша, Нудл"
+          },
+          {
+            "achievID": "a_tornado",
+            "purchaseID": "Tornado",
+            "rarity": "Weapon",
+            "searchName": "Торнадо, Смерч"
+          },
+          {
+            "achievID": "a_wirelessDaggers",
+            "purchaseID": "WirelessDaggers, BluetoothDagger",
+            "rarity": "Weapon",
+            "searchName": "Беспроводной Кинжал, Кинжалы"
+          }
+        ];
+
+        const ivBytes = [
+            55, 134, 78, 241, 92, 36, 188, 10,
+            203, 198, 14, 57, 120, 239, 31, 6
+        ];
+        const keyBytes = [
+            217, 64, 132, 13, 90, 231, 199, 144,
+            123, 9, 36, 55, 188, 12, 91, 68,
+            170, 247, 14, 39, 62, 18, 208, 251,
+            77, 162, 184, 199, 103, 204, 145, 29
+        ];
+        
+        function bytesToHex(arr) {
+            return arr.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        const keyWA = CryptoJS.enc.Hex.parse(bytesToHex(keyBytes));
+        const ivWA  = CryptoJS.enc.Hex.parse(bytesToHex(ivBytes));
+
+        function encrypt(text) {
+            const normalizedText = text.replace(/\r?\n/g, '\r\n');
+            const encryptedText = CryptoJS.AES.encrypt(normalizedText, keyWA, { iv: ivWA, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
+            return encryptedText.ciphertext.toString(CryptoJS.enc.Base64);
+        }
+        
+        function decrypt(text) {
+            const cipherParams = CryptoJS.lib.CipherParams.create({ ciphertext: CryptoJS.enc.Base64.parse(text) });
+            const decryptedText = CryptoJS.AES.decrypt(cipherParams, keyWA, { iv: ivWA, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
+            return CryptoJS.enc.Utf8.stringify(decryptedText);
+        }
+        
+        // ДОБАВЛЕНО: Функция для новых Уведомлений
+        function showNotification(message, type = 'success') {
+            const container = document.getElementById('notification-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+
+        
+        let globalSaveData = null; 
+        let originalFileName = 'progression.json';
+        let currentTab = 'Hero'; 
+        
+        let currentLang = null; 
+        
+        const dropZone = document.getElementById('drop-zone');
+        const dropZoneText = dropZone.querySelector('span:first-child');
+        const dropZoneHint = dropZone.querySelector('.path-hint');
+        const downloadBtn = document.getElementById('download-button');
+        const searchBar = document.getElementById('search-bar');
+        const editorContent = document.getElementById('editor-content');
+        const statusMessage = document.getElementById('status-message');
+        const silverInput = document.getElementById('silver-input');
+        const setSilverBtn = document.getElementById('set-silver-btn');
+        const desertUnlockCheckbox = document.getElementById('desert-unlock');
+        const globalControls = document.querySelector('.global-controls');
+        const toggleControlsBtn = document.getElementById('toggle-controls-btn');
+        const searchClearBtn = document.getElementById('search-clear-btn'); // ДОБАВЛЕНО: Кнопка очистки
+        
+        const langBtnEn = document.getElementById('lang-en');
+        const langBtnRu = document.getElementById('lang-ru');
+
+        function getTranslation(key) {
+            const lang = currentLang || 'en';
+            return translations[lang][key] || translations['en'][key];
+        }
+        
+        // ДОБАВЛЕНО: Функция для счетчиков вкладок
+        function updateTabCounters() {
+            if (!globalSaveData) return;
+
+            const tabs = [
+                { key: 'tabHero', rarity: 'Hero' },
+                { key: 'tabWeapon', rarity: 'Weapon' },
+                { key: 'tabTome', rarity: 'Tome' },
+                { key: 'tabItems', rarity: 'Предметы' } 
+            ];
+
+            tabs.forEach(tabInfo => {
+                const button = document.querySelector(`.tab-button[data-key="${tabInfo.key}"]`);
+                if (!button) return;
+
+                let items;
+                if (tabInfo.rarity === 'Предметы') {
+                    const itemRarities = ['Common', 'Rare', 'Epic', 'Legendary'];
+                    items = itemDatabase.filter(item => itemRarities.includes(item.rarity));
+                } else {
+                    items = itemDatabase.filter(item => item.rarity === tabInfo.rarity);
+                }
+                
+                const total = items.length;
+                const unlocked = items.filter(item => checkUnlocked(item)).length;
+                
+                const baseText = getTranslation(tabInfo.key);
+                button.textContent = `${baseText} (${unlocked}/${total})`;
+            });
+        }
+
+        function setLanguage(lang) {
+            if (lang === currentLang && lang !== null) return; 
+            
+            currentLang = lang;
+            localStorage.setItem('megabonkEditorLang', lang); 
+            
+            langBtnEn.classList.toggle('active', lang === 'en');
+            langBtnRu.classList.toggle('active', lang === 'ru');
+
+            document.querySelectorAll('[data-key]').forEach(el => {
+                const key = el.dataset.key;
+                el.textContent = getTranslation(key);
+            });
+            document.querySelectorAll('[data-key-placeholder]').forEach(el => {
+                const key = el.dataset.keyPlaceholder;
+                el.placeholder = getTranslation(key);
+            });
+            
+            if (globalSaveData) {
+                dropZoneText.textContent = `${getTranslation('dropZoneLoaded')}${originalFileName}`;
+                updateTabCounters(); // ИЗМЕНЕНО: Обновляем счетчики
+                renderEditor(searchBar.value); 
+            } else {
+                if(statusMessage) {
+                    statusMessage.textContent = getTranslation('statusMessage');
+                }
+                // ИЗМЕНЕНО: Сбрасываем счетчики, если сейв не загружен
+                document.querySelectorAll('.tab-button[data-key]').forEach(btn => {
+                    btn.textContent = getTranslation(btn.dataset.key);
+                });
+            }
+        }
+        
+        function formatDisplayName(item) {
+            if (currentLang === 'ru') {
+                return item.searchName.split(',')[0].trim(); 
+            }
+            
+            if (!item.purchaseID) return "Unknown";
+            let name = item.purchaseID.split(',')[0].trim();
+            name = name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z])([A-Z][a-z])/g, '$1 $2');
+            return name.charAt(0).toUpperCase() + name.slice(1);
+        }
+
+        const savedLang = localStorage.getItem('megabonkEditorLang') || 'en';
+        setLanguage(savedLang);
+
+        langBtnEn.addEventListener('click', () => setLanguage('en'));
+        langBtnRu.addEventListener('click', () => setLanguage('ru'));
+
+
+        const langIconButton = document.getElementById('lang-icon-button');
+        const langPopup = document.getElementById('lang-popup');
+        
+        langIconButton.addEventListener('click', (e) => {
+            e.stopPropagation(); 
+            langPopup.classList.toggle('show');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!langPopup.contains(e.target) && e.target !== langIconButton) {
+                langPopup.classList.remove('show');
+            }
+        });
+
+        document.querySelectorAll('.lang-popup .lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                langPopup.classList.remove('show');
+            });
+        });
+
+
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                currentTab = button.dataset.tab;
+                if (globalSaveData) {
+                    renderEditor(searchBar.value);
+                }
+            });
+        });
+
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('dragover'); });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length === 0) return;
+            const file = e.dataTransfer.files[0];
+            if (file && file.name.includes('progression.json')) {
+                originalFileName = file.name;
+                dropZoneText.textContent = `${getTranslation('dropZoneLoaded')}${originalFileName}`; 
+                readFile(file);
+            } else {
+                showNotification(getTranslation('alertDragError'), 'error'); // ИЗМЕНЕНО: alert
+            }
+        });
+        dropZone.addEventListener('click', () => {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.json';
+            fileInput.onchange = (e) => {
+                if (e.target.files.length === 0) return;
+                const file = e.target.files[0];
+                 if (file && file.name.includes('progression.json')) {
+                    originalFileName = file.name;
+                    dropZoneText.textContent = `${getTranslation('dropZoneLoaded')}${originalFileName}`; 
+                    readFile(file);
+                } else {
+                    showNotification(getTranslation('alertSelectError'), 'error'); // ИЗМЕНЕНО: alert
+                }
+            };
+            fileInput.click();
+        });
+
+        function readFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                let fileContent = e.target.result;
+                try {
+                    const decryptedJson = decrypt(fileContent);
+                    globalSaveData = JSON.parse(decryptedJson);
+                } catch (e) {
+                    try {
+                         globalSaveData = JSON.parse(fileContent);
+                         console.warn("Файл не был зашифрован, загружен как обычный JSON.");
+                    } catch (jsonError) {
+                         showNotification(getTranslation('alertLoadError') + e.message, 'error'); // ИЗМЕНЕНО: alert
+                         dropZoneText.textContent = getTranslation('dropZoneError');
+                         return;
+                    }
+                }
+                
+                if (!globalSaveData.achievements) globalSaveData.achievements = [];
+                if (!globalSaveData.claimedAchievements) globalSaveData.claimedAchievements = [];
+                if (!globalSaveData.purchases) globalSaveData.purchases = [];
+
+                const autoAddAchievements = ["a_refresh"];
+                autoAddAchievements.forEach(id => {
+                    addItemToArray(globalSaveData.achievements, id);
+                    addItemToArray(globalSaveData.claimedAchievements, id);
+                });
+
+                searchBar.disabled = false;
+                downloadBtn.disabled = false;
+                silverInput.disabled = false;
+                setSilverBtn.disabled = false;
+                desertUnlockCheckbox.disabled = false;
+                globalControls.classList.remove('controls-disabled'); 
+                
+                silverInput.value = globalSaveData.silver || 0; 
+
+                const desertItem = { achievID: "a_desert,a_desert1_0_hyper", purchaseID: "" };
+                desertUnlockCheckbox.checked = checkUnlocked(desertItem);
+                
+                updateSlotUI('weapon-slots');
+                updateSlotUI('tome-slots');
+                updateSlotUI('reroll-slots');
+                updateSlotUI('skip-slots');
+                updateSlotUI('banish-slots');
+
+                updateTabCounters(); // ДОБАВЛЕНО: Обновляем счетчики
+                renderEditor();
+            };
+            reader.readAsText(file);
+        }
+
+        function renderEditor(filter = "") {
+            const filterLower = filter.toLowerCase();
+            const itemRarities = ['Common', 'Rare', 'Epic', 'Legendary'];
+            const rarityOrder = ['Common', 'Rare', 'Epic', 'Legendary']; 
+
+            let html = "";
+            let itemsFound = 0;
+
+            const filteredDatabase = itemDatabase.filter(item => {
+                if (!item || typeof item.searchName !== 'string') {
+                    console.error("Найден 'сломанный' предмет в itemDatabase:", item);
+                    return false; 
+                }
+                
+                const displayName = formatDisplayName(item);
+                const searchString = `${item.achievID} ${item.purchaseID} ${item.searchName} ${item.rarity} ${displayName}`.toLowerCase();
+                return searchString.includes(filterLower);
+            });
+
+            if (currentTab === 'Предметы') {
+                const groups = { 'Common': [], 'Rare': [], 'Epic': [], 'Legendary': [] };
+                
+                filteredDatabase.forEach(item => {
+                    if (itemRarities.includes(item.rarity)) {
+                        groups[item.rarity].push(item);
+                    }
+                });
+
+                for (const rarity of rarityOrder) {
+                    if (groups[rarity].length > 0) {
+                        itemsFound += groups[rarity].length;
+                        html += `<div class="rarity-section">`;
+                        html += `<h2 class="rarity-title">${rarity}</h2>`; 
+                        html += `<div class="item-grid">`;
+
+                        const sortedItems = groups[rarity].sort((a, b) => 
+                            formatDisplayName(a).localeCompare(formatDisplayName(b))
+                        );
+
+                        for (const item of sortedItems) {
+                            html += createItemCard(item);
+                        }
+                        
+                        html += `</div></div>`;
+                    }
+                }
+
+            } else {
+                let itemsToShow = filteredDatabase.filter(i => i.rarity === currentTab);
+                itemsFound = itemsToShow.length;
+                
+                if (itemsToShow.length > 0) {
+                    itemsToShow.sort((a, b) => formatDisplayName(a).localeCompare(formatDisplayName(b)));
+                    
+                    html += '<div class="item-grid">';
+                    for (const item of itemsToShow) {
+                        html += createItemCard(item);
+                    }
+                    html += '</div>';
+                }
+            }
+            
+            if (itemsFound === 0) {
+                html = `<p id="status-message">${getTranslation('searchNotFound')}"${filter}"</p>`;
+            }
+            
+            editorContent.innerHTML = html;
+
+            document.querySelectorAll('.item-card').forEach(card => {
+                card.addEventListener('click', () => toggleItem(card));
+            });
+        }
+        
+        function createItemCard(item) {
+            const isUnlocked = checkUnlocked(item);
+            const displayName = formatDisplayName(item); 
+            const mainPurchaseID = item.purchaseID.split(',')[0].trim();
+            const iconUrl = `icons/${mainPurchaseID}.png`;
+            
+            const onLoadScript = "this.style.display='flex'; this.previousElementSibling.style.display='none';";
+
+            return `
+                <div class="item-card rarity-${item.rarity} ${isUnlocked ? 'unlocked' : ''}" data-achiev-id="${item.achievID}" data-purchase-id="${item.purchaseID}">
+                    <div class="item-icon-placeholder">?</div>
+                    <img class="item-icon" src="${iconUrl}" alt="${displayName}" onload="${onLoadScript}">
+                    <p class="item-name rarity-${item.rarity}">${displayName}</p>
+                </div>
+            `;
+        }
+
+        searchBar.addEventListener('input', (e) => {
+            if (globalSaveData) {
+                renderEditor(e.target.value);
+            }
+        });
+        
+        // ДОБАВЛЕНО: Лисенер для кнопки очистки
+        searchClearBtn.addEventListener('click', () => {
+            searchBar.value = '';
+            searchBar.dispatchEvent(new Event('input')); // Триггерим событие 'input'
+        });
+        
+        setSilverBtn.addEventListener('click', () => {
+            if (!globalSaveData) {
+                showNotification(getTranslation('alertLoadFirst'), 'error'); // ИЗМЕНЕНО: alert
+                return;
+            }
+            const silverValue = silverInput.value;
+            if (silverValue === "" || isNaN(parseInt(silverValue)) || parseInt(silverValue) < 0) {
+                showNotification(getTranslation('alertInvalidNumber'), 'error'); // ИЗМЕНЕНО: alert
+                return;
+            }
+            
+            globalSaveData.silver = parseInt(silverValue);
+            showNotification(getTranslation('btnSaved'), 'success'); // ИЗМЕНЕНО: Убрали '✅'
+        });
+
+        desertUnlockCheckbox.addEventListener('change', () => {
+            if (!globalSaveData) {
+                showNotification(getTranslation('alertLoadFirst'), 'error'); // ИЗМЕНЕНО: alert
+                return;
+            }
+            
+            const desertAchievs = ["a_desert", "a_desert1_0_hyper"];
+            
+            if (desertUnlockCheckbox.checked) {
+                desertAchievs.forEach(id => {
+                    addItemToArray(globalSaveData.achievements, id);
+                    addItemToArray(globalSaveData.claimedAchievements, id);
+                });
+            } else {
+                desertAchievs.forEach(id => {
+                    removeItemFromArray(globalSaveData.achievements, id);
+                    removeItemFromArray(globalSaveData.claimedAchievements, id);
+                });
+            }
+        });
+
+        function checkUnlocked(item) {
+            const achievIDs = item.achievID.split(',').map(s => s.trim()).filter(Boolean); 
+            const purchaseIDs = item.purchaseID.split(',').map(s => s.trim()).filter(Boolean);
+
+            const hasAchiev = achievIDs.every(id => globalSaveData.achievements.includes(id));
+            const hasPurchase = (purchaseIDs.length === 0) ? true : purchaseIDs.every(id => globalSaveData.purchases.includes(id));
+            
+            return hasAchiev && hasPurchase;
+        }
+
+        function toggleItem(card) {
+            const achievIDString = card.dataset.achievId;
+            const purchaseIDString = card.dataset.purchaseId;
+            const isUnlocked = card.classList.contains('unlocked');
+            
+            const achievIDs = achievIDString.split(',').map(s => s.trim());
+            const purchaseIDs = purchaseIDString.split(',').map(s => s.trim());
+
+            if (isUnlocked) {
+                achievIDs.forEach(id => {
+                    if (id) removeItemFromArray(globalSaveData.achievements, id);
+                    if (id) removeItemFromArray(globalSaveData.claimedAchievements, id);
+                });
+                purchaseIDs.forEach(id => {
+                   if (id) removeItemFromArray(globalSaveData.purchases, id);
+                });
+                card.classList.remove('unlocked');
+            } else {
+                achievIDs.forEach(id => {
+                    if (id) addItemToArray(globalSaveData.achievements, id);
+                    if (id) addItemToArray(globalSaveData.claimedAchievements, id);
+                });
+                purchaseIDs.forEach(id => {
+                    if (id) addItemToArray(globalSaveData.purchases, id);
+                });
+                card.classList.add('unlocked');
+            }
+            updateTabCounters(); // ДОБАВЛЕНО: Обновляем счетчики
+        }
+        
+        function addItemToArray(arr, item) {
+            if (item && !arr.includes(item)) {
+                arr.push(item);
+            }
+        }
+        function removeItemFromArray(arr, item) {
+            if (!item) return;
+            const index = arr.indexOf(item);
+            if (index > -1) {
+                arr.splice(index, 1);
+            }
+        }
+        
+        
+        function initSlotEditor(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const boxes = container.querySelectorAll('.slot-box:not(.disabled)');
+            
+            boxes.forEach(box => {
+                box.addEventListener('click', () => {
+                    if (!globalSaveData || globalControls.classList.contains('controls-disabled')) return;
+
+                    const clickedSlotNum = parseInt(box.dataset.slot);
+                    const isCurrentlyActive = box.classList.contains('active');
+                    const saveKey = box.dataset.key;
+                    
+                    let newActiveCount = 0;
+                    
+                    boxes.forEach(b => {
+                        const slotNum = parseInt(b.dataset.slot);
+                        
+                        if (isCurrentlyActive) {
+                            if (slotNum >= clickedSlotNum) {
+                                b.classList.remove('active');
+                            }
+                        } else {
+                            if (slotNum <= clickedSlotNum) {
+                                b.classList.add('active');
+                            }
+                        }
+                        
+                        if (b.classList.contains('active')) {
+                            newActiveCount++;
+                        }
+                    });
+                    
+                    if (saveKey) {
+                        if (typeof globalSaveData[saveKey] === 'undefined') {
+                            globalSaveData[saveKey] = 0;
+                        }
+                        globalSaveData[saveKey] = newActiveCount;
+                    }
+                    
+                    boxes.forEach(b => {
+                        const achiev = b.dataset.achiev;
+                        if (!achiev) return;
+                        
+                        if (b.classList.contains('active')) {
+                            addItemToArray(globalSaveData.achievements, achiev);
+                            addItemToArray(globalSaveData.claimedAchievements, achiev);
+                        } else {
+                            removeItemFromArray(globalSaveData.achievements, achiev);
+                            removeItemFromArray(globalSaveData.claimedAchievements, achiev);
+                        }
+                    });
+                });
+            });
+        }
+        
+        function updateSlotUI(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const boxes = container.querySelectorAll('.slot-box:not(.disabled)');
+            if (boxes.length === 0) return;
+            
+            const saveKey = boxes[0].dataset.key; 
+            if (typeof globalSaveData[saveKey] === 'undefined') {
+                 globalSaveData[saveKey] = 0;
+            }
+            const value = globalSaveData[saveKey] || 0;
+            
+            boxes.forEach(b => {
+                const slotNum = parseInt(b.dataset.slot);
+                if (slotNum <= value) {
+                    b.classList.add('active');
+                } else {
+                    b.classList.remove('active');
+                }
+            });
+        }
+        
+        initSlotEditor('weapon-slots');
+        initSlotEditor('tome-slots');
+        initSlotEditor('reroll-slots');
+        initSlotEditor('skip-slots');
+        initSlotEditor('banish-slots');
+
+        
+        toggleControlsBtn.addEventListener('click', () => {
+            globalControls.classList.toggle('expanded');
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (!globalSaveData) {
+                showNotification(getTranslation('alertNoSave'), 'error'); // ИЗМЕНЕНО: alert
+                return;
+            }
+            try {
+                const jsonString = JSON.stringify(globalSaveData, null, 2);
+                const encryptedBase64 = encrypt(jsonString);
+                const blob = new Blob([encryptedBase64], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = originalFileName; 
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                showNotification(getTranslation('btnSaved'), 'success'); // ИЗМЕНЕНО: alert
+            } catch (error) {
+                showNotification(getTranslation('alertSaveError') + error.message, 'error'); // ИЗМЕНЕНО: alert
+            }
+        });
+
+    </script>
+</body>
+</html>
